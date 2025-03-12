@@ -1,0 +1,26 @@
+.main-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.date-picker-container,
+.actions-container {
+    margin-bottom: 20px;
+}
+
+.date-picker-container label,
+.actions-container label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* Optionnel : style pour le dropdown */
+#actions-dropdown {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
