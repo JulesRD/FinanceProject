@@ -11,6 +11,8 @@ from mylogging import getLogger
 import timescaledb_model as tsdb
 
 from bourso import get_df
+from euronext import get_df
+from create_db import create_db
 
 mylogger = getLogger(__name__)
 
@@ -19,6 +21,9 @@ db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
 ## Boursorama
 
 df_bourso = get_df()
+df_eronext = get_df()
+
+database = create_db()
 
 
 ### MOCKING data
