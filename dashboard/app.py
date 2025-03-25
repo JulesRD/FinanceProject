@@ -20,8 +20,8 @@ db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
 
 ## Boursorama
 
-df_bourso = get_df()
-df_eronext = get_df()
+df_bourso = get_df(num_files=100)
+df_eronext = get_df(n=100)
 
 database = create_db()
 

@@ -21,17 +21,15 @@ def merge_df(file_path, df):
     df_tmp['date'] = extract_date_hours(file_path)
     return pd.concat([df, df_tmp])
   
-def get_df():
+def get_df(num_files=100):
     df = pd.DataFrame()
-    # make ls
-    # make a pwd
     dir = os.listdir(HOME + "boursorama")
     i = 0
     for dir_date in dir :
         list_file_path = os.listdir(HOME + "boursorama/" + dir_date)
         for file_path in list_file_path :
             df = merge_df(HOME + "boursorama/" + dir_date + "/" + file_path, df)
-            if (i == 100) :
+            if (i == num_files) :
                 break
             i+=1
         break
