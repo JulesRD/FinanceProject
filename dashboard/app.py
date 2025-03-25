@@ -10,9 +10,16 @@ import dash_bootstrap_components as dbc
 from mylogging import getLogger
 import timescaledb_model as tsdb
 
+from bourso import get_df
+
 mylogger = getLogger(__name__)
 
 db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
+
+## Boursorama
+
+df_bourso = get_df()
+
 
 ### MOCKING data
 date_range = pd.date_range(start='2025-03-01', end='2025-04-01', freq='D')
@@ -37,4 +44,5 @@ from index import layout  # Not before app is defined since we use it
 app.layout = layout
 
 if __name__ == '__main__':
+
     app.run(debug=True)
