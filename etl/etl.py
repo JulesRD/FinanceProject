@@ -6,6 +6,10 @@ import time
 import re
 import timescaledb_model as tsdb
 
+from bourso import get_df as get_df_boursorama
+from euronext import get_df as get_df_euronext
+from create_db import create_db
+
 TSDB = tsdb.TimescaleStockMarketModel
 HOME = "/home/bourse/data/"   # we expect subdirectories boursorama and euronext
 
@@ -16,7 +20,10 @@ HOME = "/home/bourse/data/"   # we expect subdirectories boursorama and euronext
 #
 # private functions
 # 
+df_bourso = get_df_boursorama(num_files=100)
+# df_eronext = get_df_euronext(n=100)
 
+# database = create_db(df_bourso, df_eronext, db)
 #
 # decorator
 # 
