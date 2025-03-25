@@ -23,7 +23,7 @@ db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
 df_bourso = get_df(num_files=100)
 df_eronext = get_df(n=100)
 
-database = create_db()
+database = create_db(df_bourso, df_eronext, db)
 
 
 ### MOCKING data
