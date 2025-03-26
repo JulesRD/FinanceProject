@@ -11,11 +11,12 @@ def populate_companies(df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db):
 
     df_companies = df_bourso.copy()
     # fill with nan
+
+    df_companies["isin"] = df_eronext["isin"]
     
-    df_companies["isin"] = np.nan
     df_companies["boursorama"] = df_companies["symbol"]
     df_companies["symbol"].apply(lambda x: x[3: len(x)])
-    df_companies["mid"] = np.nan # TODO
+    df_companies["mid"] = np.nan 
     df_companies["euronext"] = np.nan # TODO
     df_companies["pea"] = np.nan # TODO
 
