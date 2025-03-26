@@ -14,7 +14,7 @@ import timescaledb_model as tsdb
 
 mylogger = getLogger(__name__)
 
-db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
+db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=True)
 
 ## Boursorama
 
@@ -23,11 +23,21 @@ db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
 
 ### MOCKING data
 date_range = pd.date_range(start='2025-03-01', end='2025-04-01', freq='D')
+value = np.random.uniform(low=10, high=100, size=100)
 data = {
     'date': np.random.choice(date_range, size=100),
-    'action': np.random.choice(['Action 1', 'Action 2', 'Action 3', 'Action 4'], size=100),
-    'value': np.random.uniform(low=10, high=100, size=100)
+    'action': np.random.choice(['Action 1', 'Action 2', 'Action 3', 'Action 4', 'Action 5', 'Action 6', 'Action 7', 'Action 8', 'Action 9', 'Action 10', 'Action 11', 'Action 12'], size=100),
+    'value': np.random.uniform(low=10, high=100, size=100),
+
+    # Ajouter des colonnes pour les valeurs open, high, low, close
+    'open': np.random.uniform(low=10, high=100, size=100),
+    'close': np.random.uniform(low=10, high=100, size=100),
 }
+
+data['high'] = data['value'] + np.random.uniform(low=0, high=10, size=100)
+data['low'] = data['value'] - np.random.uniform(low=0, high=10, size=100)
+
+print("\n\n\nEND_OF_DATA\n\n\n")
 df = pd.DataFrame(data)
 db.df_write(df, 'stock_data')
 ###
