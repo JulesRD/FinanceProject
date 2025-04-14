@@ -2,6 +2,20 @@ import pandas as pd
 import numpy as np
 
 from timescaledb_model import initial_markets_data
+import re
+
+
+def clean_numeric_column(series):
+    return (
+        series.astype(str)
+        .str.replace(',', '.', regex=False)
+        .str.replace(' ', '', regex=False)
+        .replace('-', np.nan)  # important : gérer explicitement "-"
+        .str.extract(r'([-+]?\d*\.?\d+)')[0]
+        .astype(float)
+    )
+
+
 
 def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db):
 
@@ -11,10 +25,11 @@ def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db):
     df_stocks = populate_stocks(df_bourso, df_companies)
 
     # Create the tables in the database
-    db.create_table("companies", df_companies)
-    db.create_table("markets", df_markets)
-    db.create_table("stocks", df_stocks)
-    db.create_table("daystocks", df_daystocks)
+    db.df_write(df_companies, "companies")
+    # db.df_write(df_markets, "markets")
+    db.df_write(df_stocks, "stocks")
+    db.df_write(df_daystocks, "daystocks")
+
 
     return None
 
@@ -103,7 +118,7 @@ def populate_stocks(df_boursorama: pd.DataFrame, df_companies: pd.DataFrame):
     # Populate the stocks dataframe
     df_stocks["date"] = merged_df["date"]
     df_stocks["cid"] = merged_df["id"].fillna(-1).astype(int)  # Ensure 'cid' is an integer
-    df_stocks["value"] = merged_df["last"]
+    df_stocks["value"] = clean_numeric_column(merged_df["last"])
     df_stocks["volume"] = merged_df["volume"]
 
     return df_stocks
@@ -130,5 +145,8 @@ def populate_daystocks(df_euronext: pd.DataFrame, df_companies: pd.DataFrame):
     df_daystocks["volume"] = merged_df["volume"]
     df_daystocks["mean"] = (merged_df["high"] + merged_df["low"]) / 2
     df_daystocks["std"] = merged_df["high"] - merged_df["low"]
+
+    for col in ["open", "close", "high", "low", "mean", "std", "volume"]:
+        df_daystocks[col] = clean_numeric_column(df_daystocks[col])
 
     return df_daystocks

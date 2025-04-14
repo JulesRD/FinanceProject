@@ -6,9 +6,11 @@ import time
 import re
 import timescaledb_model as tsdb
 
+
 from bourso import get_df as get_df_boursorama
 from euronext import get_df as get_df_euronext
 from create_db import create_db
+from merger_df import merge_dataset
 
 TSDB = tsdb.TimescaleStockMarketModel
 HOME = "/home/bourse/data/"   # we expect subdirectories boursorama and euronext
@@ -23,9 +25,11 @@ HOME = "/home/bourse/data/"   # we expect subdirectories boursorama and euronext
 df_bourso = get_df_boursorama(num_files=100)
 df_eronext = get_df_euronext(n=100)
 
+df = merge_dataset(df_bourso, df_eronext, delete_name_alone=True)
 
-db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
-database = create_db(df_bourso, df_eronext, db)
+db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=True)
+
+database = create_db(df, df_bourso, df_eronext, db)
 #
 # decorator
 # 

@@ -91,7 +91,9 @@ class TimescaleStockMarketModel:
         self.logger.info("Setup database generates an error if it exists already, it's ok")
         if remove_all:
             self._purge_database()
+        
         self._setup_database()
+
 
     def _connect_to_database(self, retry_limit=5, retry_delay=1):
         """
@@ -340,6 +342,8 @@ class TimescaleStockMarketModel:
         :param commit: do a commit after writing
         :param other args: see https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.to_sql.html
         """
+
+
         self.logger.debug("df_write")
         df.to_sql(
             table,
