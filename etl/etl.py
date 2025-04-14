@@ -21,9 +21,11 @@ HOME = "/home/bourse/data/"   # we expect subdirectories boursorama and euronext
 # private functions
 # 
 df_bourso = get_df_boursorama(num_files=100)
-# df_eronext = get_df_euronext(n=100)
+df_eronext = get_df_euronext(n=100)
 
-# database = create_db(df_bourso, df_eronext, db)
+
+db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp')
+database = create_db(df_bourso, df_eronext, db)
 #
 # decorator
 # 
