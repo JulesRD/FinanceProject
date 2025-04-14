@@ -23,7 +23,7 @@ HOME = "/home/bourse/data/"   # we expect subdirectories boursorama and euronext
 # private functions
 # 
 df_bourso = get_df_boursorama(num_files=100)
-df_eronext = get_df_euronext(n=100)
+df_eronext = get_df_euronext(n=4)
 
 df = merge_dataset(df_bourso, df_eronext, delete_name_alone=True)
 
