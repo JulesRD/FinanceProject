@@ -13,6 +13,9 @@ mylogger = getLogger(__name__)
 @app.callback(
     Output('actions-graph', 'figure'),
     Output('correlation-graph', 'figure'),
+    Output('display-mode-checkbox', 'style'),
+    Output('bollinger-mode-checkbox', 'style'),
+    Output('correlation-container', 'style'),
     [Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date'),
      Input('actions-dropdown', 'value'),
@@ -21,18 +24,12 @@ mylogger = getLogger(__name__)
 )
 def update_graph(start_date, end_date, selected_actions, display_mode, bollinger_mode):
     if not start_date or not end_date or not selected_actions:
-        return {}
+        return {}, {}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
 
-    if display_mode:
-        # Query the daystocks table for candlestick mode
-        query = f"""
-        SELECT date, cid, open, low, high, close
-        FROM daystocks
-        WHERE cid IN ({', '.join([f"{cid}" for cid in selected_actions])})
-        AND date BETWEEN '{start_date}' AND '{end_date}'
-        ORDER BY date
-        """
-    else:
+    # Determine if multiple actions are selected
+    multiple_actions = len(selected_actions) > 1
+
+    if multiple_actions:
         # Query the stocks table for line mode
         query = f"""
         SELECT date, cid, value
@@ -41,6 +38,27 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
         AND date BETWEEN '{start_date}' AND '{end_date}'
         ORDER BY date
         """
+        display_mode = False  # Force line mode
+        bollinger_mode = False  # Disable Bollinger Bands
+    else:
+        if display_mode:
+            # Query the daystocks table for candlestick mode
+            query = f"""
+            SELECT date, cid, open, low, high, close
+            FROM daystocks
+            WHERE cid IN ({', '.join([f"{cid}" for cid in selected_actions])})
+            AND date BETWEEN '{start_date}' AND '{end_date}'
+            ORDER BY date
+            """
+        else:
+            # Query the stocks table for line mode
+            query = f"""
+            SELECT date, cid, value
+            FROM stocks
+            WHERE cid IN ({', '.join([f"{cid}" for cid in selected_actions])})
+            AND date BETWEEN '{start_date}' AND '{end_date}'
+            ORDER BY date
+            """
 
     mylogger.debug(f"\nQUERY: {query}\n")
     df = db.df_query(query)
@@ -69,7 +87,6 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
                 type="date"
             )
         )
-
     else:
         fig = px.line(df, x='date', y='value', color='cid', title='Stock Values Over Time')
         fig.update_layout(
@@ -87,7 +104,8 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
                 type="date"
             )
         )
-    if bollinger_mode:
+
+    if bollinger_mode and not multiple_actions:
         # Calculate Bollinger Bands
         window = 20  # Window size for the moving average
         df['SMA'] = df.groupby('cid')['value'].transform(lambda x: x.rolling(window=window).mean())
@@ -104,7 +122,10 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
 
     # --- Calcul et affichage de la matrice de corrélation ---
     corr_fig = {}
-    if len(selected_actions) > 1 and not display_mode:
+    if multiple_actions:
+        # Aggregate duplicate entries by taking the mean of the values
+        df = df.groupby(['date', 'cid']).mean().reset_index()
+
         # Pivot pour avoir une table avec chaque action en colonne
         pivot_df = df.pivot(index='date', columns='cid', values='value')
         corr_matrix = pivot_df.corr()
@@ -127,8 +148,7 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
 
     # Save the figure
     fig.write_image("./fig1.png")
-    return fig, corr_fig
-
+    return fig, corr_fig, {'display': 'none' if multiple_actions else 'block'}, {'display': 'none' if multiple_actions else 'block'}, {'display': 'block' if multiple_actions else 'none'}
 
 get_actions_query = f"""
 SELECT id, name
@@ -190,7 +210,7 @@ tab1_layout = html.Div([
             html.Div([
                 html.H4("Matrice de corrélation"),
                 dcc.Graph(id='correlation-graph')
-            ], className="correlation-container"),
+            ], id='correlation-container'),
         ], className="graph-container"),
         html.Div(id="output-container")
     ], className="main-container"),
