@@ -3,7 +3,6 @@ from dash import dcc
 from dash import html
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
-import dash.dependencies as ddep
 import plotly.express as px
 from dash.dependencies import Input, Output
 from app import app, db
@@ -13,12 +12,14 @@ mylogger = getLogger(__name__)
 
 @app.callback(
     Output('actions-graph', 'figure'),
+    Output('correlation-graph', 'figure'),
     [Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date'),
      Input('actions-dropdown', 'value'),
-     Input('display-mode-checkbox', 'value')],
+     Input('display-mode-checkbox', 'value'),
+     Input('bollinger-mode-checkbox', 'value')],
 )
-def update_graph(start_date, end_date, selected_actions, display_mode):
+def update_graph(start_date, end_date, selected_actions, display_mode, bollinger_mode):
     if not start_date or not end_date or not selected_actions:
         return {}
 
@@ -52,13 +53,82 @@ def update_graph(start_date, end_date, selected_actions, display_mode):
                                              high=df['high'],
                                              low=df['low'],
                                              close=df['close'])])
-        fig.update_layout(title='Stock Values Over Time (Candlestick)')
+        fig.update_layout(
+            title='Stock Values Over Time (Candlestick)',
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=7, label="1W", step="day", stepmode="backward"),
+                        dict(count=1, label="1M", step="month", stepmode="backward"),
+                        dict(count=3, label="3M", step="month", stepmode="backward"),
+                        dict(count=6, label="6M", step="month", stepmode="backward"),
+                        dict(step="all")
+                    ])
+                ),
+                rangeslider=dict(visible=True),
+                type="date"
+            )
+        )
+
     else:
         fig = px.line(df, x='date', y='value', color='cid', title='Stock Values Over Time')
+        fig.update_layout(
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=7, label="1W", step="day", stepmode="backward"),
+                        dict(count=1, label="1M", step="month", stepmode="backward"),
+                        dict(count=3, label="3M", step="month", stepmode="backward"),
+                        dict(count=6, label="6M", step="month", stepmode="backward"),
+                        dict(step="all")
+                    ])
+                ),
+                rangeslider=dict(visible=True),
+                type="date"
+            )
+        )
+    if bollinger_mode:
+        # Calculate Bollinger Bands
+        window = 20  # Window size for the moving average
+        df['SMA'] = df.groupby('cid')['value'].transform(lambda x: x.rolling(window=window).mean())
+        df['RollingStd'] = df.groupby('cid')['value'].transform(lambda x: x.rolling(window=window).std())
+        df['UpperBand'] = df['SMA'] + (df['RollingStd'] * 2)
+        df['LowerBand'] = df['SMA'] - (df['RollingStd'] * 2)
+
+        # Add Bollinger Bands to the graph
+        for cid in selected_actions:
+            df_cid = df[df['cid'] == cid]
+            fig.add_trace(go.Scatter(x=df_cid['date'], y=df_cid['SMA'], mode='lines', name=f'SMA {cid}'))
+            fig.add_trace(go.Scatter(x=df_cid['date'], y=df_cid['UpperBand'], mode='lines', name=f'Upper Band {cid}', line=dict(dash='dash')))
+            fig.add_trace(go.Scatter(x=df_cid['date'], y=df_cid['LowerBand'], mode='lines', name=f'Lower Band {cid}', line=dict(dash='dash')))
+
+    # --- Calcul et affichage de la matrice de corrélation ---
+    corr_fig = {}
+    if len(selected_actions) > 1 and not display_mode:
+        # Pivot pour avoir une table avec chaque action en colonne
+        pivot_df = df.pivot(index='date', columns='cid', values='value')
+        corr_matrix = pivot_df.corr()
+
+        corr_fig = go.Figure(data=go.Heatmap(
+            z=corr_matrix.values,
+            x=corr_matrix.columns,
+            y=corr_matrix.index,
+            colorscale='Viridis',
+            zmin=-1,
+            zmax=1,
+            colorbar=dict(title="Corrélation")
+        ))
+
+        corr_fig.update_layout(
+            title="Corrélation entre les actions",
+            xaxis_title="Action",
+            yaxis_title="Action"
+        )
 
     # Save the figure
     fig.write_image("./fig1.png")
-    return fig
+    return fig, corr_fig
+
 
 get_actions_query = f"""
 SELECT id, name
@@ -101,7 +171,13 @@ tab1_layout = html.Div([
             html.Label("Mode d'affichage:"),
             dbc.Checklist(  # Use Checklist from dash_bootstrap_components
                 id='display-mode-checkbox',
-                options=[{'label': 'Candlestick', 'value': True}],
+                options=[{'label': 'Chandeliers', 'value': True}],
+                value=[],  # Default to line mode
+                switch=True,
+            ),
+            dbc.Checklist(  # Use Checklist from dash_bootstrap_components
+                id='bollinger-mode-checkbox',
+                options=[{'label': 'Bandes de Bollinger', 'value': True}],
                 value=[],  # Default to line mode
                 switch=True,
             )
@@ -109,7 +185,12 @@ tab1_layout = html.Div([
 
         # Graph for selected actions and date range
         html.Div([
-            dcc.Graph(id='actions-graph')
+            dcc.Graph(id='actions-graph'),
+            # Matrice de corrélation
+            html.Div([
+                html.H4("Matrice de corrélation"),
+                dcc.Graph(id='correlation-graph')
+            ], className="correlation-container"),
         ], className="graph-container"),
         html.Div(id="output-container")
     ], className="main-container"),
