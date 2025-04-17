@@ -20,7 +20,12 @@ def merge_df(file_path, df):
     # df.reset_index(drop=True, inplace=True)
     df_tmp['date'] = extract_date_hours(file_path)
     return pd.concat([df, df_tmp])
-  
+def extract_symbole(df):
+    df["boursorama"] = df["symbol"].copy()
+    df["symbol"] = df["symbol"].apply(lambda x: x[3: len(x)])
+def extract_identifiant_companies(df):
+    df["prefix"] = df["boursorama"].apply(lambda x: x[0:3])
+    
 def get_df(num_files=100):
     df = pd.DataFrame()
     dir = os.listdir(HOME + "boursorama")
@@ -33,4 +38,7 @@ def get_df(num_files=100):
                 break
             i+=1
         break
+    extract_symbole(df)
+    extract_identifiant_companies(df)
+
     return df

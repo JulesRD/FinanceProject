@@ -2,6 +2,9 @@ import pandas as pd
 import glob
 import os
 import re
+import numpy as np
+import datetime
+HOME = "/home/bourse/data/"
 
 def load_dataset(data_path, n):
     # Print the number of files in the directory
@@ -34,8 +37,11 @@ def load_dataset(data_path, n):
             date_match = re.search(r'(\d{4}-\d{2}-\d{2})', os.path.basename(file))
             if date_match:
                 file_date = date_match.group(1)
+                # Add the second and milisecond to the date
+                file_date = file_date + " 00:00:00.000000"
+                file_date = datetime.datetime.strptime(file_date, '%Y-%m-%d %H:%M:%S.%f')
                 # Add the date as a new column (as datetime type)
-                df['file_date'] = pd.to_datetime(file_date)
+                df['date'] = file_date
             else:
                 # Optionally log or handle files without a proper date in the filename
                 df['file_date'] = pd.NaT
@@ -50,7 +56,7 @@ def load_dataset(data_path, n):
 
 def get_df(n):
     # Define the path to the directory containing the files
-    data_path = "bourse/data/euronext/"
+    data_path = HOME + "euronext"
 
     df_list = load_dataset(data_path, n)
 
@@ -66,7 +72,7 @@ def get_df(n):
     # Define a mapping of equivalent column names to merge differences between CSV and XLSX files
     column_synonyms = {
         'ticker': ['ticker', 'symbol'],
-        'company': ['company', 'company_name', 'name'],
+        'name': ['company', 'company_name', 'name'],
         'price': ['price', 'closing_price', 'last_price', 'last'],
         'currency': ['currency', 'trading_currency'],
         'open': ['open', 'open_price'],
@@ -110,6 +116,27 @@ def get_df(n):
         combined_df['pea'] = False
 
     # Reset the index of the dataframe
+    combined_df.reset_index(drop=True, inplace=True)
+
+    #   Replace invalid values with NaN
+    combined_df["high"] = combined_df["high"].replace('-', np.nan)
+    combined_df["low"] = combined_df["low"].replace('-', np.nan)
+
+    # Convert columns to float
+    combined_df["high"] = combined_df["high"].astype(float)
+    combined_df["low"] = combined_df["low"].astype(float)
+    
+    # Trier les données par 'isin' et 'date' pour garantir l'ordre correct
+    if 'isin' in combined_df.columns and 'date' in combined_df.columns:
+        combined_df.sort_values(by=['isin', 'date'], inplace=True)
+
+    # Ajouter une colonne 'close' qui correspond à la valeur 'open' du jour suivant pour chaque 'isin'
+    if 'open' in combined_df.columns:
+        combined_df['close'] = combined_df.groupby('isin')['open'].shift(-1)
+    else:
+        combined_df['close'] = pd.NA
+
+    # Réinitialiser l'index après avoir ajouté la colonne 'close'
     combined_df.reset_index(drop=True, inplace=True)
 
     return combined_df
