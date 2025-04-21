@@ -7,7 +7,7 @@ import plotly.express as px
 from dash.dependencies import Input, Output
 from app import app, db
 from mylogging import getLogger
-
+git stat
 mylogger = getLogger(__name__)
 
 @app.callback(
@@ -160,7 +160,7 @@ list_actions = list(list_actions.itertuples(index=False, name=None))
 
 tab1_layout = html.Div([
     html.Div([
-        html.H1("J'ai un changement"),
+        html.H1("Graphique des cours"),
 
         # Sélecteur de période
         html.Div([
