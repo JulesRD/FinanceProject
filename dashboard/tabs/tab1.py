@@ -1,3 +1,5 @@
+import datetime
+
 import pandas as pd
 from dash import dcc
 from dash import html
@@ -7,7 +9,7 @@ import plotly.express as px
 from dash.dependencies import Input, Output
 from app import app, db
 from mylogging import getLogger
-git stat
+
 mylogger = getLogger(__name__)
 
 @app.callback(
@@ -150,12 +152,14 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
     fig.write_image("./fig1.png")
     return fig, corr_fig, {'display': 'none' if multiple_actions else 'block'}, {'display': 'none' if multiple_actions else 'block'}, {'display': 'block' if multiple_actions else 'none'}
 
+print("\n\nLoading companies...\n\n")
 get_actions_query = f"""
 SELECT id, name
 FROM companies
 ORDER BY name
 """
 list_actions = db.df_query(get_actions_query)
+print("\n\nlist_actions:\n", list_actions, "\n\n")
 list_actions = list(list_actions.itertuples(index=False, name=None))
 
 tab1_layout = html.Div([
@@ -167,6 +171,8 @@ tab1_layout = html.Div([
             html.Label("Choisissez la période:"),
             dcc.DatePickerRange(
                 id='date-picker-range',
+                start_date=datetime.date(2022, 1, 1),
+                end_date=datetime.date(2022, 12, 31),
                 start_date_placeholder_text="Début",
                 end_date_placeholder_text="Fin",
                 calendar_orientation='vertical'
