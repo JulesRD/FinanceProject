@@ -1,44 +1,53 @@
-import pandas as pd
-import numpy as np
+from mylogging import getLogger
 import os
-
+import pandas as pd
 import datetime
+import re
+
+
 HOME = "/home/bourse/data/"
+logger = getLogger(__name__)
+
+# Regex optimisée pour extraire date + heure
+_date_re = re.compile(r'(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}\.\d+)')
 
 def extract_date_hours(path):
-    file_name = path.split('/')[-1]  # Extract the file name
-    date_str, time_str = file_name.split(' ')[1:3]  # Extract date and time parts
-    time_str = ".".join(time_str.split('.')[0:2])
-    date_time_str = f"{date_str} {time_str}"
-    date_time = datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S.%f')
-    return date_time
+    file_name = path.split('/')[-1]
+    match = _date_re.search(file_name)
+    if not match:
+        return None
 
-def merge_df(file_path, df):
-    df_tmp = pd.read_pickle(
-    file_path,
-    )
-    # df.reset_index(drop=True, inplace=True)
-    df_tmp['date'] = extract_date_hours(file_path)
-    return pd.concat([df, df_tmp])
+    date_str = match.group(1)
+    time_str = match.group(2)
+    return datetime.datetime.strptime(f"{date_str} {time_str}", '%Y-%m-%d %H:%M:%S.%f')
+
 def extract_symbole(df):
-    df["boursorama"] = df["symbol"].copy()
-    df["symbol"] = df["symbol"].apply(lambda x: x[3: len(x)])
+    df["boursorama"] = df["symbol"]
+    df["symbol"] = df["symbol"].str[3:]
+
 def extract_identifiant_companies(df):
-    df["prefix"] = df["boursorama"].apply(lambda x: x[0:3])
-    
-def get_df(num_files=100):
-    df = pd.DataFrame()
-    dir = os.listdir(HOME + "boursorama")
-    i = 0
-    for dir_date in dir :
-        list_file_path = os.listdir(HOME + "boursorama/" + dir_date)
-        for file_path in list_file_path :
-            df = merge_df(HOME + "boursorama/" + dir_date + "/" + file_path, df)
-            if (i == num_files) :
-                break
-            i+=1
-        break
+    df["prefix"] = df["boursorama"].str[:3]
+def list_all_file():
+    list_path = []
+    for dir_date in os.listdir(HOME + "boursorama"):
+        for file_name in os.listdir(HOME + "boursorama/" + dir_date):
+            full_path = os.path.join(HOME, "boursorama", dir_date, file_name)
+            list_path.append(full_path)
+    return list_path
+
+def get_df(list_path, start = 0, end = 10000):
+    df_list = []
+    for path in list_path:
+        df_tmp = pd.read_pickle(path)
+        df_tmp['date'] = extract_date_hours(path)
+        df_list.append(df_tmp)
+        start += 1
+        if start >= end:
+            break
+    df = pd.concat(df_list, ignore_index=True)
     extract_symbole(df)
     extract_identifiant_companies(df)
-
+    logger.info("All files loaded")
     return df
+
+

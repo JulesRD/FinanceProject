@@ -4,34 +4,46 @@ import numpy as np
 from timescaledb_model import initial_markets_data
 import re
 
+from mylogging import getLogger
+from time import time
+logger = getLogger(__name__)
+import re
 
 def clean_numeric_column(series):
-    return (
+    # Utilise une regex unique pour extraire les nombres, après un pré-nettoyage vectorisé
+    cleaned = (
         series.astype(str)
-        .str.replace(',', '.', regex=False)
-        .str.replace(' ', '', regex=False)
-        .replace('-', np.nan)  # important : gérer explicitement "-"
+        .str.replace(r'[ ,]', '', regex=True)  # supprime espaces et virgules en une passe
+        .replace('-', np.nan)  # attention : ça marche si "-" est toute la valeur
         .str.extract(r'([-+]?\d*\.?\d+)')[0]
-        .astype(float)
     )
+    return pd.to_numeric(cleaned, errors='coerce')
 
 
 
-def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db):
+def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db, only_stocks=False, df_companies=None, df_markets=None):
+    if df_companies is None:
+        logger.info("populate markets and companies")
+        df_markets = populate_markets()
+        df_companies = populate_companies(df, df_markets)
+        df_daystocks = populate_daystocks(df_eronext, df_companies)
 
-    df_markets = populate_markets()
-    df_companies = populate_companies(df, df_markets)
-    df_daystocks = populate_daystocks(df_eronext, df_companies)
+    tps = time()
     df_stocks = populate_stocks(df_bourso, df_companies)
+    tps_stocks = time() - tps
 
-    # Create the tables in the database
-    db.df_write(df_companies, "companies")
-    # db.df_write(df_markets, "markets")
+
+    tps = time()
+    if not only_stocks:
+        logger.info("pushing data to database")
+        db.df_write(df_companies, "companies")
+        db.df_write(df_daystocks, "daystocks")
+
     db.df_write(df_stocks, "stocks")
-    db.df_write(df_daystocks, "daystocks")
-
-
-    return None
+    
+    tps_create = time() - tps
+    logger.info("tps_create: %s, tps_stocks %s", tps_create, tps_stocks)
+    return df_markets, df_companies, 
 
 def populate_companies(df, df_markets):
     df_companies = pd.DataFrame()

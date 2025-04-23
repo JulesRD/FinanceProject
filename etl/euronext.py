@@ -4,7 +4,9 @@ import os
 import re
 import numpy as np
 import datetime
+from mylogging import getLogger
 HOME = "/home/bourse/data/"
+logger = getLogger(__name__)
 
 def load_dataset(data_path, n):
     # Print the number of files in the directory
@@ -21,6 +23,8 @@ def load_dataset(data_path, n):
 
     # Loop through each file and process based on file extension
     for file in files:
+        if counter % 100 == 0:
+            logger.info(f"Processing file {counter}")
         if counter == n:
             break
         try:
