@@ -34,12 +34,22 @@ def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db, only_stoc
 
 
     tps = time()
+    del df_bourso
+    df_bourso = None
+    del df
+    df = None
     if not only_stocks:
         logger.info("pushing data to database")
         db.df_write(df_companies, "companies")
         db.df_write(df_daystocks, "daystocks")
+    else:
+        # df_existing = pd.read_csv("/tmp/stocks.csv.gz", compression="gzip")
+        # df_stocks = pd.concat([df_existing, df_stocks])
+        pass
+    # df_stocks.to_csv("/tmp/stocks.csv.gz", index=False, compression="gzip")
 
     db.df_write(df_stocks, "stocks")
+    tps = time()
     
     tps_create = time() - tps
     logger.info("tps_create: %s, tps_stocks %s", tps_create, tps_stocks)

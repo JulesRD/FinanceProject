@@ -26,30 +26,44 @@ logger = getLogger(__name__)
 #
 # private functions
 # 
-df_eronext = get_df_euronext(n=9999999999)
-db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=True)
-list_path = list_all_file()
-start = 0
-end = 30000
-df_companies, df_markets = None, None
-while start < len(list_path):
-    logger.info("start: %s, end: %s", start, end)
-    tps_bourso = time.time()
-    df_bourso = get_df_boursorama(list_path, start = start, end = end)
-    tps_bourso = time.time() - tps_bourso
-    tps_merge = time.time()
-    df = merge_dataset(df_bourso, df_eronext, delete_name_alone=True)
-    tps_merge = time.time() - tps_merge
 
-    tps_database = time.time()
-    df_markets, df_companies = create_db(df, df_bourso, df_eronext, db, only_stocks = (start!=0), df_companies=df_companies, df_markets=df_markets)
-    tps_database = time.time() - tps_database
-    logger.info("tps_bourso: %s, tps_merge: %s, tps_database: %s", tps_bourso, tps_merge, tps_database)
-    logger.info("database inserted")
-    start = end
-    end += 30000
-    del df_bourso
-    del df
+REMOVE_ALL = False
+if REMOVE_ALL:
+    df_eronext = get_df_euronext(n=9999999999)
+    db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=REMOVE_ALL)
+    list_path = list_all_file()
+    start = 0
+    end = 10000
+    df_companies, df_markets = None, None
+    while start < len(list_path):
+        logger.info("start: %s, end: %s", start, end)
+        tps_bourso = time.time()
+        df_bourso = get_df_boursorama(list_path, start = start, end = end)
+        tps_bourso = time.time() - tps_bourso
+        tps_merge = time.time()
+        df = merge_dataset(df_bourso, df_eronext, delete_name_alone=True)
+        tps_merge = time.time() - tps_merge
+
+        tps_database = time.time()
+        df_markets, df_companies = create_db(df, df_bourso, df_eronext, db, only_stocks = (start!=0), df_companies=df_companies, df_markets=df_markets)
+        tps_database = time.time() - tps_database
+        logger.info("tps_bourso: %s, tps_merge: %s, tps_database: %s", tps_bourso, tps_merge, tps_database)
+        logger.info("database inserted")
+        start = end
+        end += 10000
+        del df_bourso
+        del df
+        df_bourso = None
+        df = None
+else:
+    db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=REMOVE_ALL)
+
+
+logger.info("Start pushing stocks into database")
+# df_stocks = pd.read_csv("/tmp/stocks.csv.gz", compression="gzip")
+# db.df_write(df_stocks, "stocks")
+# logger.info("End pushing stocks into database")
+
 #
 # decorator
 # 
