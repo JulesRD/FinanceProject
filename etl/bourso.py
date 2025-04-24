@@ -37,13 +37,13 @@ def list_all_file():
 
 def get_df(list_path, start = 0, end = 10000):
     df_list = []
-    for path in list_path:
+    end = min(end, len(list_path))
+    for i in range(start, end):
+        path = list_path[i]
         df_tmp = pd.read_pickle(path)
         df_tmp['date'] = extract_date_hours(path)
         df_list.append(df_tmp)
-        start += 1
-        if start >= end:
-            break
+        
     df = pd.concat(df_list, ignore_index=True)
     extract_symbole(df)
     extract_identifiant_companies(df)

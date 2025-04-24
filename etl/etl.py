@@ -27,7 +27,7 @@ logger = getLogger(__name__)
 # private functions
 # 
 
-REMOVE_ALL = False
+REMOVE_ALL = True
 if REMOVE_ALL:
     df_eronext = get_df_euronext(n=9999999999)
     db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=REMOVE_ALL)
@@ -55,6 +55,8 @@ if REMOVE_ALL:
         del df
         df_bourso = None
         df = None
+        if start > 70000:
+            break
 else:
     db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=REMOVE_ALL)
 
