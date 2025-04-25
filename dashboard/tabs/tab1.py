@@ -154,7 +154,7 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
 
 print("\n\nLoading companies...\n\n")
 get_actions_query = f"""
-SELECT id, name
+SELECT id, name, symbol
 FROM companies
 ORDER BY name
 """
@@ -185,7 +185,7 @@ tab1_layout = html.Div([
             dcc.Dropdown(
                 id="actions-dropdown",
                 options=[
-                    {'label': name, 'value': cid} for cid, name in list_actions
+                    {'label': name + "-" + symbol, 'value': cid} for cid, name, symbol in list_actions
                 ],
                 multi=True,
                 placeholder="Sélectionnez jusqu'à 2 actions"
