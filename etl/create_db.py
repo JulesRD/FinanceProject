@@ -25,7 +25,7 @@ def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db, only_stoc
     if df_companies is None:
         logger.info("populate markets and companies")
         df_markets = populate_markets()
-        df_companies = populate_companies(df, df_markets)
+        df_companies = populate_companies(df_bourso, df_eronext, df_markets)
         df_daystocks = populate_daystocks(df_eronext, df_companies)
 
     tps = time()
@@ -55,44 +55,60 @@ def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db, only_stoc
     logger.info("tps_create: %s, tps_stocks %s", tps_create, tps_stocks)
     return df_markets, df_companies, 
 
-def populate_companies(df, df_markets):
-    df_companies = pd.DataFrame()
-
-    df_companies["isin"] = df["isin"].values
-    df_companies["name"] = df["name"].values
-
-    # Merge df with df_markets on the 'prefix' and 'boursorama' columns, with explicit suffixes
-    merged_df = df.merge(
-        df_markets[['boursorama', 'id', 'name']],
-        how='left',
-        left_on='prefix',
-        right_on='boursorama',
-        suffixes=('_action', '_market')  # Explicit suffixes to avoid conflicts
+def populate_companies(df_boursorama, df_euronext, df_market):
+    """
+    Merge Boursorama and Euronext dataframes to keep only:
+      - name
+      - isin       (from df_euronext)
+      - symbol     (from df_boursorama)
+      - boursorama (last price from df_boursorama)
+      - euronext   (price from df_euronext)
+      - mid        (market id from df_market, matched via the first 3 letters of boursorama code)
+    """
+    # only name, symbol & boursorama on the Bourso side
+    small_bourso = df_boursorama[["name", "symbol", "boursorama"]]
+    unique_bourso = (
+        small_bourso
+        .drop_duplicates(subset=["name", "symbol", "boursorama"])
+        .sort_values(by=["name", "symbol"])
     )
 
-    # Extract the 'id' and 'name_market' columns from the merged dataframe
-    df_companies["mid"] = merged_df["id"].fillna(-1).astype(int)  # Ensure 'mid' is an integer
-    df_companies["symbol"] = df["symbol"].values
-    df_companies["boursorama"] = df["boursorama"].values
-    df_companies["id"] = np.arange(len(df_companies))
-
-    df_companies["euronext"] = df["ticker"].values
-    eligible_pea = ["Bourse de Milan", "Mercados Espanoles", "Amsterdam", "Paris", "Deutsche Borse", "Bruxelle"]
-
-    # Use the 'name_market' column to determine eligibility for PEA
-    df_companies["pea"] = merged_df["name_market"].apply(lambda name: name in eligible_pea if pd.notna(name) else False)
-
-    df_companies["sector1"] = ""  # TODO
-    df_companies["sector2"] = ""  # TODO
-    df_companies["sector3"] = ""  # TODO
-
-    # Drop duplicates based on all columns except 'id'
-    df_companies = df_companies.loc[:, ~df_companies.columns.isin(['id'])].drop_duplicates().reset_index(drop=True)
-
-    # Reassign unique IDs after dropping duplicates
-    df_companies["id"] = np.arange(len(df_companies))
-
-    return df_companies
+    # name, isin & ticker on the Euronext side
+    small_euronext = df_euronext[["name", "isin", "ticker"]]
+    unique_euronext = (
+        small_euronext
+        .drop_duplicates(subset=["name", "isin", "ticker"])
+        .sort_values(by=["name", "isin"])
+    )
+    
+    # Merge on "name" — isin will come from Euronext
+    merged_df = pd.merge(unique_bourso, unique_euronext, on="name", how="inner")
+    merged_df.rename(columns={"ticker": "euronext"}, inplace=True)
+    
+    # Create market_prefix on companies side from first 3 chars of boursorama code
+    merged_df["market_prefix"] = merged_df["boursorama"].str[:3]
+    
+    # Prepare market mapping from df_market using boursorama code prefix
+    df_market2 = df_market.copy()
+    df_market2["market_prefix"] = df_market2["boursorama"].str[:3]
+    market_mapping = (
+        df_market2[["market_prefix", "id"]]
+        .rename(columns={"id": "mid"})
+        .drop_duplicates("market_prefix")
+    )
+    
+    # Merge to get mid based on market_prefix
+    merged_df = merged_df.merge(market_mapping, on="market_prefix", how="left")
+    merged_df.drop(columns="market_prefix", inplace=True)
+    
+    merged_df["pea"] = False
+    merged_df["sector1"] = ""  # TODO
+    merged_df["sector2"] = ""  # TODO
+    merged_df["sector3"] = ""  # TODO
+    
+    # Assign a new unique id for companies if needed
+    merged_df["id"] = np.arange(len(merged_df))
+    return merged_df
 
 
 
