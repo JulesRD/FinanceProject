@@ -52,7 +52,7 @@ def get_df(list_path, start = 0, end = 10000):
     df = pd.concat(df_list, ignore_index=True)
     extract_symbole(df)
     extract_identifiant_companies(df)
-    df = delete_volument_equal_zero(df)
+    # df = delete_volument_equal_zero(df)
     logger.info("All files loaded")
     return df
 
