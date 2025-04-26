@@ -30,7 +30,7 @@ def update_graph(start_date, end_date, selected_actions, display_mode, bollinger
 
     # Determine if multiple actions are selected
     multiple_actions = len(selected_actions) > 1
-
+    
     if multiple_actions:
         # Query the stocks table for line mode
         query = f"""

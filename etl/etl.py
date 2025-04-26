@@ -33,7 +33,7 @@ if REMOVE_ALL:
     db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=REMOVE_ALL)
     list_path = list_all_file()
     start = 0
-    end = 20000
+    end = 15000
     df_companies, df_markets = None, None
     while start < len(list_path):
         logger.info("start: %s, end: %s", start, end)
@@ -50,7 +50,7 @@ if REMOVE_ALL:
         logger.info("tps_bourso: %s, tps_merge: %s, tps_database: %s", tps_bourso, tps_merge, tps_database)
         logger.info("database inserted")
         start = end
-        end += 20000
+        end += 15000
         del df_bourso
         del df
         df_bourso = None

@@ -9,7 +9,7 @@ from time import time
 logger = getLogger(__name__)
 import re
 
-def clean_numeric_column(series):
+def clean_numeric_column_fast(series):
     # Utilise une regex unique pour extraire les nombres, après un pré-nettoyage vectorisé
     cleaned = (
         series.astype(str)
@@ -57,38 +57,42 @@ def create_db(df, df_bourso:pd.DataFrame, df_eronext:pd.DataFrame, db, only_stoc
 
 def populate_companies(df_boursorama, df_euronext, df_market):
     """
-    Merge Boursorama and Euronext dataframes to keep only:
-      - name
-      - isin       (from df_euronext)
-      - symbol     (from df_boursorama)
-      - boursorama (last price from df_boursorama)
-      - euronext   (price from df_euronext)
-      - mid        (market id from df_market, matched via the first 3 letters of boursorama code)
+    Merge Boursorama et Euronext pour conserver :
+      - name         (issu de Boursorama ou Euronext)
+      - isin         (issu d'Euronext, NaN si manquant)
+      - symbol       (clé de merge)
+      - boursorama   (last price, issu de Boursorama, NaN si manquant)
+      - euronext     (price issu d'Euronext, NaN si manquant)
+      - mid          (market id de df_market basé sur les 3 premières lettres du code boursorama)
+      - pea, sector1, sector2, sector3
     """
-    # only name, symbol & boursorama on the Bourso side
+
+    # Côté Boursorama : garder name, symbol et boursorama
     small_bourso = df_boursorama[["name", "symbol", "boursorama"]]
     unique_bourso = (
-        small_bourso
-        .drop_duplicates(subset=["name", "symbol", "boursorama"])
+        small_bourso.drop_duplicates(subset=["name", "symbol", "boursorama"])
         .sort_values(by=["name", "symbol"])
+        .rename(columns={"name": "name_bourso"})
     )
 
-    # name, isin & ticker on the Euronext side
-    small_euronext = df_euronext[["name", "isin", "ticker"]]
+    # Côté Euronext : garder name, isin et ticker (rajoute 'euronext') en créant une copie
+    small_euronext = df_euronext[["name", "isin", "ticker"]].copy()
+    small_euronext["euronext"] = small_euronext["ticker"]
     unique_euronext = (
-        small_euronext
-        .drop_duplicates(subset=["name", "isin", "ticker"])
-        .sort_values(by=["name", "isin"])
+        small_euronext.drop_duplicates(subset=["name", "isin", "ticker"])
+        .sort_values(by=["isin"])
+        .rename(columns={"name": "name_euronext", "ticker": "symbol"})
     )
+
+    # Outer merge sur "symbol" pour conserver tous les enregistrements
+    merged_df = pd.merge(unique_bourso, unique_euronext, on="symbol", how="outer", indicator=True, suffixes=("", ""))
     
-    # Merge on "name" — isin will come from Euronext
-    merged_df = pd.merge(unique_bourso, unique_euronext, on="name", how="inner")
-    merged_df.rename(columns={"ticker": "euronext"}, inplace=True)
+    # Fusionner les noms : on privilégie le nom de Boursorama s'il existe, sinon celui d'Euronext
+    merged_df["name"] = merged_df["name_bourso"].combine_first(merged_df["name_euronext"])
+    merged_df.drop(columns=["name_bourso", "name_euronext", "_merge"], inplace=True)
     
-    # Create market_prefix on companies side from first 3 chars of boursorama code
+    # Calculer le préfixe marché à partir du code boursorama et join avec df_market
     merged_df["market_prefix"] = merged_df["boursorama"].str[:3]
-    
-    # Prepare market mapping from df_market using boursorama code prefix
     df_market2 = df_market.copy()
     df_market2["market_prefix"] = df_market2["boursorama"].str[:3]
     market_mapping = (
@@ -96,18 +100,21 @@ def populate_companies(df_boursorama, df_euronext, df_market):
         .rename(columns={"id": "mid"})
         .drop_duplicates("market_prefix")
     )
-    
-    # Merge to get mid based on market_prefix
     merged_df = merged_df.merge(market_mapping, on="market_prefix", how="left")
     merged_df.drop(columns="market_prefix", inplace=True)
     
+    # Colonnes supplémentaires
     merged_df["pea"] = False
     merged_df["sector1"] = ""  # TODO
     merged_df["sector2"] = ""  # TODO
     merged_df["sector3"] = ""  # TODO
     
-    # Assign a new unique id for companies if needed
+    # Convertir mid en int en remplaçant les valeurs manquantes par -1
+    merged_df["mid"] = merged_df["mid"].fillna(-1).astype(int)
+    
+    # Optionnel : assigner un nouvel identifiant unique
     merged_df["id"] = np.arange(len(merged_df))
+    
     return merged_df
 
 
@@ -137,7 +144,7 @@ def populate_markets():
 
     return df_markets
 
-def populate_stocks(df_boursorama: pd.DataFrame, df_companies: pd.DataFrame):
+def populate_stocks(df_boursorama: pd.DataFrame, df_companies: pd.DataFrame, save_path: str = "daystocks.parquet"):
     df_stocks = pd.DataFrame()
 
     # Reset index to avoid ambiguity with 'symbol', without adding the old index as a column
@@ -146,45 +153,46 @@ def populate_stocks(df_boursorama: pd.DataFrame, df_companies: pd.DataFrame):
 
     # Merge df_boursorama with df_companies on the 'symbol' column
     merged_df = df_boursorama.merge(
-        df_companies[['symbol', 'id']],
+        df_companies[['symbol', 'id', 'name']],
         how='left',
-        left_on='symbol',
-        right_on='symbol',
+        left_on='name',
+        right_on='name',
         suffixes=('', '_company')  # Avoid suffix conflicts
     )
 
     # Populate the stocks dataframe
     df_stocks["date"] = merged_df["date"]
     df_stocks["cid"] = merged_df["id"].fillna(-1).astype(int)  # Ensure 'cid' is an integer
-    df_stocks["value"] = clean_numeric_column(merged_df["last"])
+    df_stocks["value"] = clean_numeric_column_fast(merged_df["last"])
     df_stocks["volume"] = merged_df["volume"]
+
 
     return df_stocks
 
-def populate_daystocks(df_euronext: pd.DataFrame, df_companies: pd.DataFrame):
-    df_daystocks = pd.DataFrame()
 
-    # Merge df_euronext with df_companies on the 'isin' column
+def populate_daystocks(df_euronext: pd.DataFrame, df_companies: pd.DataFrame):
+    # Merge des deux DataFrames
     merged_df = df_euronext.merge(
         df_companies[['isin', 'id']],
         how='left',
-        left_on='isin',
-        right_on='isin',
-        suffixes=('', '_company')  # Avoid suffix conflicts
+        on='isin'
     )
 
-    # Populate the daystocks dataframe
+    # Initialisation du df final
+    df_daystocks = pd.DataFrame()
     df_daystocks["date"] = merged_df["date"]
-    df_daystocks["cid"] = merged_df["id"].fillna(-1).astype(int)  # Ensure 'cid' is an integer
-    df_daystocks["open"] = merged_df["open"]
-    df_daystocks["close"] = merged_df["close"]
-    df_daystocks["high"] = merged_df["high"]
-    df_daystocks["low"] = merged_df["low"]
-    df_daystocks["volume"] = merged_df["volume"]
-    df_daystocks["mean"] = (merged_df["high"] + merged_df["low"]) / 2
-    df_daystocks["std"] = merged_df["high"] - merged_df["low"]
+    df_daystocks["cid"] = merged_df["id"].fillna(-1).astype(int)
 
-    for col in ["open", "close", "high", "low", "mean", "std", "volume"]:
-        df_daystocks[col] = clean_numeric_column(df_daystocks[col])
+    # Colonnes à nettoyer
+    numeric_cols = ["open", "close", "high", "low", "volume"]
+    tps = time()
+    df_daystocks[numeric_cols] = merged_df[numeric_cols].apply(clean_numeric_column_fast)
+    print("Time to clean numeric columns:", time() - tps)
+
+    # Calculs dérivés (mean et std après clean)
+    df_daystocks["mean"] = (df_daystocks["high"] + df_daystocks["low"]) / 2
+    df_daystocks["std"] = df_daystocks["high"] - df_daystocks["low"]
+    # delete all nan
+    df_daystocks = df_daystocks.dropna(subset=["volume", "open", "close"])
 
     return df_daystocks

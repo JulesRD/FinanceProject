@@ -8,6 +8,7 @@ from mylogging import getLogger
 HOME = "/home/bourse/data/"
 logger = getLogger(__name__)
 
+
 def load_dataset(data_path, n):
     # Print the number of files in the directory
     files = os.listdir(data_path)
@@ -23,8 +24,6 @@ def load_dataset(data_path, n):
 
     # Loop through each file and process based on file extension
     for file in files:
-        if counter % 100 == 0:
-            logger.info(f"Processing file {counter}")
         if counter == n:
             break
         try:
@@ -142,5 +141,7 @@ def get_df(n):
 
     # Réinitialiser l'index après avoir ajouté la colonne 'close'
     combined_df.reset_index(drop=True, inplace=True)
-
+    # remove all the line that contains NaN in the column close, high, low
+    combined_df = combined_df.dropna(subset=['close', 'high', 'low'])
     return combined_df
+
