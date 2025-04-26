@@ -9,6 +9,11 @@ HOME = "/home/bourse/data/"
 logger = getLogger(__name__)
 
 
+import pandas as pd
+import glob
+import os
+import re
+
 def load_dataset(data_path, n):
     # Print the number of files in the directory
     files = os.listdir(data_path)
@@ -56,7 +61,9 @@ def load_dataset(data_path, n):
             print(f"Error processing file {file}: {e}")
 
     return df_list
-
+def delete_symbole_ending_with_NV(df):
+    df = df[~df['ticker'].str.endswith('NV')]
+    return df
 def get_df(n):
     # Define the path to the directory containing the files
     data_path = HOME + "euronext"
@@ -143,5 +150,7 @@ def get_df(n):
     combined_df.reset_index(drop=True, inplace=True)
     # remove all the line that contains NaN in the column close, high, low
     combined_df = combined_df.dropna(subset=['close', 'high', 'low'])
+    combined_df = delete_symbole_ending_with_NV(combined_df)
     return combined_df
+
 

@@ -165,9 +165,12 @@ def populate_stocks(df_boursorama: pd.DataFrame, df_companies: pd.DataFrame, sav
     df_stocks["cid"] = merged_df["id"].fillna(-1).astype(int)  # Ensure 'cid' is an integer
     df_stocks["value"] = clean_numeric_column_fast(merged_df["last"])
     df_stocks["volume"] = merged_df["volume"]
-
+    # delete all line where the cid is -1 but print it
+    logger.info(f"Number of stocks with cid -1: {len(df_stocks[df_stocks['cid'] == -1])}")
+    df_stocks = df_stocks[df_stocks["cid"] != -1]
 
     return df_stocks
+
 
 
 def populate_daystocks(df_euronext: pd.DataFrame, df_companies: pd.DataFrame):
