@@ -105,7 +105,10 @@ def populate_companies(df_boursorama, df_euronext, df_market):
     merged_df["sector1"] = ""  # TODO
     merged_df["sector2"] = ""  # TODO
     merged_df["sector3"] = ""  # TODO
-    
+
+    # Ensure the values are integer
+    merged_df["mid"] = merged_df["mid"].fillna(-1).astype(int)
+
     # Assign a new unique id for companies if needed
     merged_df["id"] = np.arange(len(merged_df))
     return merged_df
