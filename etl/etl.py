@@ -50,7 +50,7 @@ if REMOVE_ALL:
         logger.info("tps_bourso: %s, tps_merge: %s, tps_database: %s", tps_bourso, tps_merge, tps_database)
         logger.info("database inserted")
         start = end
-        end += 10000
+        end += 5000
         del df_bourso
         del df
         df_bourso = None
