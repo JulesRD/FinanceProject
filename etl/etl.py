@@ -55,8 +55,8 @@ if REMOVE_ALL:
         del df
         df_bourso = None
         df = None
-        if start > 70000:
-            break
+        #if start > 70000:
+        #    break
 else:
     db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=REMOVE_ALL)
 
