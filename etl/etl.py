@@ -50,12 +50,12 @@ if REMOVE_ALL:
         logger.info("tps_bourso: %s, tps_merge: %s, tps_database: %s", tps_bourso, tps_merge, tps_database)
         logger.info("database inserted")
         start = end
-        end += 5000
+        end += 10000
         del df_bourso
         del df
         df_bourso = None
         df = None
-        #if start > 70000:
+        #if start > 10000:
         #    break
 else:
     db = tsdb.TimescaleStockMarketModel('bourse', 'ricou', 'db', 'monmdp', remove_all=REMOVE_ALL)
